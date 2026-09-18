@@ -329,10 +329,10 @@ validate_effort_override() {
   local route="$1" effort="${CROSS_MODEL_EFFORT_OVERRIDE:-}"
   [ -n "$effort" ] || return 0
   case "$route:$effort" in
-    claude:low|claude:medium|claude:high|claude:xhigh|claude:max) ;;
+    claude:low|claude:medium|claude:high|claude:xhigh) ;;
     codex:minimal|codex:low|codex:medium|codex:high|codex:xhigh) ;;
     grok-cli:low|grok-cli:medium|grok-cli:high) ;;
-    opencode:none|opencode:minimal|opencode:low|opencode:medium|opencode:high|opencode:xhigh|opencode:max|opencode:default) ;;
+    opencode:none|opencode:minimal|opencode:low|opencode:medium|opencode:high|opencode:xhigh|opencode:default) ;;
     *) return 1 ;;
   esac
 }

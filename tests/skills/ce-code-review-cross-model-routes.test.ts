@@ -1513,19 +1513,19 @@ describe("cross-model-adversarial-review normalization", () => {
     expect(r.stderr).toContain("WARNING: model mismatch - requested claude-opus-5, backend served claude-opus-50-20260801")
   })
 
-  test("a valid effort override is recorded as effort_requested and an invalid one skips the pass", () => {
+  test("xhigh effort override is recorded and max skips the pass", () => {
     const { env } = sandbox(["claude"], claudeStub)
     let runDir = makeRunDir()
-    let r = run(["codex", "claude", "HEAD", runDir], runDir, { ...env, CROSS_MODEL_EFFORT_OVERRIDE: "max" })
+    let r = run(["codex", "claude", "HEAD", runDir], runDir, { ...env, CROSS_MODEL_EFFORT_OVERRIDE: "xhigh" })
     expect(r.files).toContain("adversarial-claude.json")
     const out = JSON.parse(readFileSync(path.join(runDir, "adversarial-claude.json"), "utf8"))
-    expect(out.effort_requested).toBe("max")
-    expect(r.stderr).toContain("(effort max)")
+    expect(out.effort_requested).toBe("xhigh")
+    expect(r.stderr).toContain("(effort xhigh)")
 
     runDir = makeRunDir()
-    r = run(["codex", "claude", "HEAD", runDir], runDir, { ...env, CROSS_MODEL_EFFORT_OVERRIDE: "minimal" })
+    r = run(["codex", "claude", "HEAD", runDir], runDir, { ...env, CROSS_MODEL_EFFORT_OVERRIDE: "max" })
     expect(r.files).not.toContain("adversarial-claude.json")
-    expect(r.stderr).toContain("effort override 'minimal' not compatible with route 'claude'; skipping")
+    expect(r.stderr).toContain("effort override 'max' not compatible with route 'claude'; skipping")
   })
 
   test("records model_actual unverified with a parse warning when the claude envelope carries no receipt (R8)", () => {
