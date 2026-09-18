@@ -1,6 +1,6 @@
 # Cross-Model Adversarial Pass
 
-Runs the **adversarial** review a second time through a different model (the "peer"), reached over one fixed route, in a read-only process. The peer gets the **same** `references/personas/adversarial-reviewer.md` brief the in-process reviewer uses, returns the same `findings-schema.json` shape, and joins Stage 5 (synthesis) as reviewer `adversarial-<provider>`. Its findings count as independent corroboration, and can promote a finding both reviewers agree on, only when its identity record (the "receipt") says `independence_verified: true`. Otherwise its findings stay in the review as attributed evidence with no promotion bonus.
+Runs the **adversarial** review a second time through a separately routed model (the "peer"), reached over one fixed route, in a read-only process. The peer gets the **same** `references/personas/adversarial-reviewer.md` brief the in-process reviewer uses, returns the same `findings-schema.json` shape, and joins Stage 5 (synthesis) as reviewer `adversarial-<provider>`. A different serving family counts as independent corroboration only when its identity record (the "receipt") says `independence_verified: true`; an explicitly selected same-family model remains attributed evidence with no promotion bonus.
 
 This pass is **adversarial-only**. No other persona gets a cross-model twin, and there is no whole-diff generalist peer. The pass costs nothing unless Stage 3 (reviewer selection) already selected the adversarial reviewer.
 
@@ -45,7 +45,7 @@ Resolve the preference in this order:
 1. A preference the user **states in conversation** (e.g. "use grok for the cross-model pass").
 2. `cross_model_peer:` from the two repo CE config files (`config.local.yaml` then `config.yaml`). Apply the ordinary-key rule: first active supported target wins; an invalid value continues to the next layer, then step 3.
 3. A preference already in your **project instructions** (the active instructions in your context) — consumed from context, **never** read from a named file.
-4. **Default:** first available attested-different target in `codex → claude → grok → composer`; Cursor-default participates only when explicitly preferred.
+4. **Default:** first available attested-different target in `codex → claude → grok → composer`; Cursor-default participates only when explicitly preferred. A same-family target is excluded by default; when explicitly selected, set `CROSS_MODEL_ALLOW_SAME_PROVIDER=1` to request model-diversity review without independent-corroboration credit.
 
 Before any content is sent, resolve the target to one concrete installed route, announce it, and pass it as `CROSS_MODEL_FIXED_ROUTE`. `CROSS_MODEL_PEERS` is an optional egress restriction, not a required approval. When it is set, every recipient (target and intermediary) must be allowed by it under the alias rule below, and a recipient it does not allow is a named skip. Otherwise, when it is unset or empty, no recipient is filtered and the pass proceeds; invoking this skill plus the disclosure made before sending is the approval. Do not inspect the worker source to rediscover this; it implements exactly this contract. `CROSS_MODEL_FIXED_ROUTE` accepts exactly these tokens. The worker refuses anything else and writes no artifact, including route-shaped guesses like `codex-cli`:
 
@@ -123,7 +123,7 @@ Disclose that this is not launcher-only isolation: the detached worker inherits 
 SKILL_DIR="<absolute path of the directory containing the ce-code-review SKILL.md you read>";
 PY="$(for c in python3 python py; do command -v "$c" >/dev/null 2>&1 && "$c" -c '' >/dev/null 2>&1 && { echo "$c"; break; }; done)"; [ -n "$PY" ] || { echo "no working Python 3 interpreter on PATH" >&2; exit 1; };
 echo "peer-deadline-secs=$(( ${CROSS_MODEL_HARD_SECS:-1200} + 10 ))";
-CE_PEER_HARD_SECS= CROSS_MODEL_HOST_HARNESS="<host-harness>" CROSS_MODEL_FIXED_ROUTE="<fixed-route>" "$PY" "$SKILL_DIR/scripts/peer-job-runner.py" start --skill ce-code-review --run-id "<run-id>" --label adversarial -- env CROSS_MODEL_HOST_HARNESS="<host-harness>" CROSS_MODEL_FIXED_ROUTE="<fixed-route>" bash "$SKILL_DIR/scripts/cross-model-adversarial-review.sh" "<host-serving-family>" "<target>" "<base-ref>" "<run-dir>"
+CE_PEER_HARD_SECS= CROSS_MODEL_HOST_HARNESS="<host-harness>" CROSS_MODEL_FIXED_ROUTE="<fixed-route>" "$PY" "$SKILL_DIR/scripts/peer-job-runner.py" start --skill ce-code-review --run-id "<run-id>" --label adversarial -- env CROSS_MODEL_HOST_HARNESS="<host-harness>" CROSS_MODEL_FIXED_ROUTE="<fixed-route>" CROSS_MODEL_ALLOW_SAME_PROVIDER="<0-or-1>" bash "$SKILL_DIR/scripts/cross-model-adversarial-review.sh" "<host-serving-family>" "<target>" "<base-ref>" "<run-dir>"
 ```
 
 When Step 1 resolved a configured model or effort, add `CROSS_MODEL_MODEL_OVERRIDE_TARGET="<target>" CROSS_MODEL_MODEL_OVERRIDE="<model>"` and/or `CROSS_MODEL_EFFORT_OVERRIDE="<effort>"` to the `env` prefix after `CROSS_MODEL_FIXED_ROUTE`; omit them when unset.

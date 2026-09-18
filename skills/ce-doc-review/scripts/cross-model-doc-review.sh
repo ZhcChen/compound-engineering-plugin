@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # cross-model-doc-review.sh
 #
-# Runs ONE ce-doc-review judgment persona through ONE or more DIFFERENT model
-# PROVIDERS than the host (the "peer(s)") in separate, read-only, least-privilege
+# Runs ONE ce-doc-review judgment persona through ONE or more peer model
+# PROVIDERS in separate, read-only, least-privilege
 # processes, and writes each peer's findings as JSON into the run dir. Each peer
 # gets the same canonical persona brief the in-process reviewer uses
 # (references/personas/<persona-file>.md) so it is genuinely "that persona, on a
@@ -11,6 +11,8 @@
 # return that folds in and fingerprints against its in-process twin.
 #
 # Independence is by PROVIDER, not CLI brand. A provider is reached by a ROUTE:
+# Explicitly selected same-provider peers are allowed for model-diversity review,
+# but they never receive an independent-corroboration receipt.
 # its dedicated CLI, or (for fixed grok-cursor / composer routes) cursor-agent. All
 # activated lenses run on ONE model per provider at high reasoning, except codex
 # on extra-high; composer's -fast tier is its ceiling (accepted exceptions).
@@ -427,6 +429,22 @@ OUTPUT_CONTRACT_RULES="$(awk '/<output-contract>/{f=1} f; /<\/output-contract>/{
 # --- resolve which provider(s) to run (exclude host, allowlist, availability) --
 ALLOW="${CROSS_MODEL_PEERS:-}"                 # optional egress allowlist (R19)
 MAX_PEERS="${CROSS_MODEL_MAX_PEERS:-1}"        # default 1; clamped 0..2 (hard cap)
+# Same-provider review is an explicit opt-in from the orchestrator when the
+# user/config selected that target. It adds model-diversity evidence only;
+# normalization keeps independence_verified=false.
+ALLOW_SAME_PROVIDER="${CROSS_MODEL_ALLOW_SAME_PROVIDER:-0}"
+case "$ALLOW_SAME_PROVIDER" in
+  0|1) ;;
+  *) skip "CROSS_MODEL_ALLOW_SAME_PROVIDER must be 0 or 1; skipping" ;;
+esac
+# Older orchestrators already pass a model override for an explicitly selected
+# target but do not know the newer opt-in flag. Treat that exact host-family
+# model binding as the equivalent explicit opt-in, never as a default choice.
+if [ "$HOST_PROVIDER" != "unknown" ] &&
+   [ -n "${CROSS_MODEL_MODEL_OVERRIDE:-}" ] &&
+   [ "${CROSS_MODEL_MODEL_OVERRIDE_TARGET:-}" = "$HOST_PROVIDER" ]; then
+  ALLOW_SAME_PROVIDER=1
+fi
 case "$MAX_PEERS" in ''|*[!0-9]*) MAX_PEERS=1 ;; esac
 [ "$MAX_PEERS" -gt 2 ] && MAX_PEERS=2
 
@@ -491,7 +509,9 @@ for p in $CANDIDATES; do
   p="$(printf '%s' "$p" | tr -d '[:space:]')"
   [ -n "$p" ] || continue
   case "$p" in codex|claude|grok|cursor|composer|opencode) ;; *) log "ignoring unknown target '$p' in candidates"; continue ;; esac
-  [ "$HOST_PROVIDER" != "unknown" ] && [ "$(target_serving_family "$p")" = "$HOST_PROVIDER" ] && continue
+  if [ "$HOST_PROVIDER" != "unknown" ] && [ "$(target_serving_family "$p")" = "$HOST_PROVIDER" ] && [ "$ALLOW_SAME_PROVIDER" != "1" ]; then
+    continue
+  fi
   case " $SELECTED " in *" $p "*) continue ;; esac   # dedup
   if [ -n "$ALLOW" ] && ! in_csv "$p" "$ALLOW"; then log "provider '$p' not in CROSS_MODEL_PEERS allowlist; skipping"; continue; fi
   if ! provider_available "$p"; then log "provider '$p' has no installed route; skipping"; continue; fi
@@ -501,8 +521,8 @@ IFS="$OLDIFS"
 SELECTED="$(printf '%s' "$SELECTED" | sed 's/^ *//')"
 
 [ "$MAX_PEERS" -ge 1 ] || skip "CROSS_MODEL_MAX_PEERS=0; cross-model pass disabled"
-[ -n "$SELECTED" ] || skip "no different-provider peer reachable (host=$HOST_PROVIDER, candidates='$CANDIDATES'); the pass needs a peer agent CLI on PATH (codex, claude, grok, cursor-agent, or opencode), not an API key alone; skipping"
-log "reachable cross-model candidates for lens $REVIEWER_NAME: $SELECTED (host $HOST_PROVIDER excluded; up to $MAX_PEERS successful peer(s))"
+[ -n "$SELECTED" ] || skip "no eligible cross-model peer reachable (host=$HOST_PROVIDER, candidates='$CANDIDATES'); the pass needs a peer agent CLI on PATH (codex, claude, grok, cursor-agent, or opencode), not an API key alone; skipping"
+log "reachable cross-model candidates for lens $REVIEWER_NAME: $SELECTED (host $HOST_PROVIDER; same-provider opt-in=$ALLOW_SAME_PROVIDER; up to $MAX_PEERS successful peer(s))"
 
 # first_n <max> <space-separated list> -> the first <max> tokens.
 first_n() {

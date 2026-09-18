@@ -439,12 +439,24 @@ provider_available() {
 }
 
 SELECTED=""
+ALLOW_SAME_PROVIDER="${CROSS_MODEL_ALLOW_SAME_PROVIDER:-0}"
+case "$ALLOW_SAME_PROVIDER" in
+  0|1) ;;
+  *) skip "CROSS_MODEL_ALLOW_SAME_PROVIDER must be 0 or 1; skipping" ;;
+esac
+if [ "$HOST_PROVIDER" != "unknown" ] &&
+   [ -n "${CROSS_MODEL_MODEL_OVERRIDE:-}" ] &&
+   [ "${CROSS_MODEL_MODEL_OVERRIDE_TARGET:-}" = "$HOST_PROVIDER" ]; then
+  ALLOW_SAME_PROVIDER=1
+fi
 OLDIFS="$IFS"; IFS=','
 for p in $CANDIDATES; do
   p="$(printf '%s' "$p" | tr -d '[:space:]')"
   [ -n "$p" ] || continue
   case "$p" in codex|claude|grok|cursor|composer|opencode) ;; *) log "ignoring unknown target '$p' in candidates"; continue ;; esac
-  [ "$HOST_PROVIDER" != "unknown" ] && [ "$(target_serving_family "$p")" = "$HOST_PROVIDER" ] && continue
+  if [ "$HOST_PROVIDER" != "unknown" ] && [ "$(target_serving_family "$p")" = "$HOST_PROVIDER" ] && [ "$ALLOW_SAME_PROVIDER" != "1" ]; then
+    continue
+  fi
   case " $SELECTED " in *" $p "*) continue ;; esac
   if [ -n "$ALLOW" ] && ! in_csv "$p" "$ALLOW"; then log "provider '$p' not in CROSS_MODEL_PEERS allowlist; skipping"; continue; fi
   if ! provider_available "$p"; then log "provider '$p' has no installed route; skipping"; continue; fi
@@ -454,8 +466,8 @@ IFS="$OLDIFS"
 SELECTED="$(printf '%s' "$SELECTED" | sed 's/^ *//')"
 
 [ "$MAX_PEERS" -ge 1 ] || skip "CROSS_MODEL_MAX_PEERS=0; cross-model pass disabled"
-[ -n "$SELECTED" ] || skip "no different-provider peer reachable (host=$HOST_PROVIDER, candidates='$CANDIDATES'); the pass needs a peer agent CLI on PATH (codex, claude, grok, cursor-agent, or opencode), not an API key alone; skipping"
-log "reachable cross-model candidates for adversarial: $SELECTED (host $HOST_PROVIDER excluded; up to $MAX_PEERS successful peer(s))"
+[ -n "$SELECTED" ] || skip "no eligible cross-model peer reachable (host=$HOST_PROVIDER, candidates='$CANDIDATES'); the pass needs a peer agent CLI on PATH (codex, claude, grok, cursor-agent, or opencode), not an API key alone; skipping"
+log "reachable cross-model candidates for adversarial: $SELECTED (host $HOST_PROVIDER; same-provider opt-in=$ALLOW_SAME_PROVIDER; up to $MAX_PEERS successful peer(s))"
 
 first_n() {
   local max="$1"; shift; local n=0 out=""

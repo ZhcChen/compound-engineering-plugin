@@ -407,6 +407,39 @@ describe("cross-model-doc-review provider selection (R7, R15, R16)", () => {
     expect(resolvePeers("claude", "grok,codex,claude,composer", all)).toBe("grok")
   })
 
+  test("explicit same-provider selection enables model-diversity review", () => {
+    const all = ["codex"]
+    expect(resolvePeers("codex", "codex", all)).toBe("<no-resolution code=0>")
+    expect(resolvePeers("codex", "codex", all, {
+      CROSS_MODEL_ALLOW_SAME_PROVIDER: "1",
+    })).toBe("codex")
+    expect(resolvePeers("codex", "codex", all, {
+      CROSS_MODEL_MODEL_OVERRIDE_TARGET: "codex",
+      CROSS_MODEL_MODEL_OVERRIDE: "gpt-5.6-luna",
+    })).toBe("codex")
+  })
+
+  test("Codex accepts xhigh but rejects max effort overrides", () => {
+    const accepted = emitAdapter("codex", {
+      CROSS_MODEL_MODEL_OVERRIDE_TARGET: "codex",
+      CROSS_MODEL_MODEL_OVERRIDE: "gpt-5.6-luna",
+      CROSS_MODEL_EFFORT_OVERRIDE: "xhigh",
+    })
+    expect(accepted).toContain('model_reasoning_effort="xhigh"')
+
+    const rejected = spawnSync("bash", [SCRIPT, "--emit-adapter", "codex"], {
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        CROSS_MODEL_MODEL_OVERRIDE_TARGET: "codex",
+        CROSS_MODEL_MODEL_OVERRIDE: "gpt-5.6-luna",
+        CROSS_MODEL_EFFORT_OVERRIDE: "max",
+      },
+    })
+    expect(rejected.status).toBe(2)
+    expect(rejected.stderr).toContain("not compatible")
+  })
+
   test("CROSS_MODEL_MAX_PEERS=2 resolves two different providers", () => {
     const all = ["codex", "claude", "grok", "cursor-agent"]
     expect(
