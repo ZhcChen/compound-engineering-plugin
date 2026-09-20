@@ -419,7 +419,7 @@ describe("cross-model-doc-review provider selection (R7, R15, R16)", () => {
     })).toBe("codex")
   })
 
-  test("Codex accepts xhigh but rejects max effort overrides", () => {
+  test("Codex accepts xhigh and max effort overrides", () => {
     const accepted = emitAdapter("codex", {
       CROSS_MODEL_MODEL_OVERRIDE_TARGET: "codex",
       CROSS_MODEL_MODEL_OVERRIDE: "gpt-5.6-luna",
@@ -427,7 +427,7 @@ describe("cross-model-doc-review provider selection (R7, R15, R16)", () => {
     })
     expect(accepted).toContain('model_reasoning_effort="xhigh"')
 
-    const rejected = spawnSync("bash", [SCRIPT, "--emit-adapter", "codex"], {
+    const acceptedMax = spawnSync("bash", [SCRIPT, "--emit-adapter", "codex"], {
       encoding: "utf8",
       env: {
         ...process.env,
@@ -436,8 +436,8 @@ describe("cross-model-doc-review provider selection (R7, R15, R16)", () => {
         CROSS_MODEL_EFFORT_OVERRIDE: "max",
       },
     })
-    expect(rejected.status).toBe(2)
-    expect(rejected.stderr).toContain("not compatible")
+    expect(acceptedMax.status).toBe(0)
+    expect(acceptedMax.stdout).toContain('model_reasoning_effort="max"')
   })
 
   test("CROSS_MODEL_MAX_PEERS=2 resolves two different providers", () => {

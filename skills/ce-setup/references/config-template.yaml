@@ -124,8 +124,8 @@
 # optionally namespace-qualified such as `openai.gpt-5.6-sol` when the codex CLI
 # routes through a non-default `model_provider`).
 # Effort levels for cross-model review: claude low|medium|high|xhigh, codex
-# minimal|low|medium|high|xhigh, grok low|medium|high; cursor/composer routes take
-# none. `max` is rejected. A value
+# minimal|low|medium|high|xhigh|max, grok low|medium|high; cursor/composer routes take
+# none. A value
 # the peer cannot honor skips the pass with a stated reason -- never substituted.
 
 # cross_model_review_mode: off   # auto | off (default: auto)

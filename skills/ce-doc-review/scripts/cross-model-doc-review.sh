@@ -94,9 +94,9 @@ case "$TRANSIENT_RETRY_DELAY_SECS" in ''|*[!0-9]*) skip "transient retry delay m
 # A checkout may override the model (CROSS_MODEL_MODEL_OVERRIDE_TARGET +
 # CROSS_MODEL_MODEL_OVERRIDE, same target/family only) and the reasoning effort
 # (CROSS_MODEL_EFFORT_OVERRIDE, validated per route); both fail closed.
-# codex: luna/xhigh is the benchmarked pick on API dollars (~0.30x sol-medium, tied
+# codex: luna is the benchmarked pick on API dollars (~0.30x sol-medium, tied
 # detection, slower tail) -- docs/solutions/skill-design/benchmark-review-peer-model-and-reasoning-tier.md
-M_CODEX="gpt-5.6-luna"         # codex CLI            (-c model_reasoning_effort="xhigh")
+M_CODEX="gpt-5.6-luna"         # codex CLI            (-c model_reasoning_effort="xhigh" by default)
 M_CLAUDE="claude-opus-5"       # claude CLI, Opus 5   (--effort high)
 M_GROK="grok-4.6"              # grok CLI             (--effort high)
 M_GROK_CURSOR="cursor-grok-4.6-high"  # fixed cursor-agent Grok route (current id)
@@ -322,7 +322,7 @@ validate_model_override() {
 
 # Accept an effort override only where the route exposes an effort flag and the
 # value is one that CLI documents (claude: low|medium|high|xhigh|max; codex
-# model_reasoning_effort: minimal|low|medium|high|xhigh; grok: low|medium|high).
+# model_reasoning_effort: minimal|low|medium|high|xhigh|max; grok: low|medium|high).
 # cursor-agent routes imply effort in the model id, so any override there is
 # invalid for the route rather than silently dropped. Empty means "no override".
 validate_effort_override() {
@@ -330,7 +330,7 @@ validate_effort_override() {
   [ -n "$effort" ] || return 0
   case "$route:$effort" in
     claude:low|claude:medium|claude:high|claude:xhigh) ;;
-    codex:minimal|codex:low|codex:medium|codex:high|codex:xhigh) ;;
+    codex:minimal|codex:low|codex:medium|codex:high|codex:xhigh|codex:max) ;;
     grok-cli:low|grok-cli:medium|grok-cli:high) ;;
     opencode:none|opencode:minimal|opencode:low|opencode:medium|opencode:high|opencode:xhigh|opencode:default) ;;
     *) return 1 ;;

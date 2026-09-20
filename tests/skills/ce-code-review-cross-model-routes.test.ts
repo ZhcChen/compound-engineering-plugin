@@ -1513,7 +1513,7 @@ describe("cross-model-adversarial-review normalization", () => {
     expect(r.stderr).toContain("WARNING: model mismatch - requested claude-opus-5, backend served claude-opus-50-20260801")
   })
 
-  test("xhigh effort override is recorded and max skips the pass", () => {
+  test("xhigh effort is recorded and Codex accepts max", () => {
     const { env } = sandbox(["claude"], claudeStub)
     let runDir = makeRunDir()
     let r = run(["codex", "claude", "HEAD", runDir], runDir, { ...env, CROSS_MODEL_EFFORT_OVERRIDE: "xhigh" })
@@ -1522,10 +1522,12 @@ describe("cross-model-adversarial-review normalization", () => {
     expect(out.effort_requested).toBe("xhigh")
     expect(r.stderr).toContain("(effort xhigh)")
 
-    runDir = makeRunDir()
-    r = run(["codex", "claude", "HEAD", runDir], runDir, { ...env, CROSS_MODEL_EFFORT_OVERRIDE: "max" })
-    expect(r.files).not.toContain("adversarial-claude.json")
-    expect(r.stderr).toContain("effort override 'max' not compatible with route 'claude'; skipping")
+    const maxAdapter = emitAdapter("codex", SCRIPT, {
+      CROSS_MODEL_MODEL_OVERRIDE_TARGET: "codex",
+      CROSS_MODEL_MODEL_OVERRIDE: "gpt-5.6-luna",
+      CROSS_MODEL_EFFORT_OVERRIDE: "max",
+    })
+    expect(maxAdapter).toContain('model_reasoning_effort="max"')
   })
 
   test("records model_actual unverified with a parse warning when the claude envelope carries no receipt (R8)", () => {
@@ -1940,7 +1942,6 @@ describe("cross-model provider kernel parity (code-review vs doc-review)", () =>
   test("an effort override the route cannot honor fails closed in both skills", () => {
     const cases: Array<[string, string]> = [
       ["claude", "minimal"],       // not a claude CLI level
-      ["codex", "max"],            // not a codex reasoning level
       ["grok-cli", "xhigh"],       // not a grok level
       ["grok-cursor", "high"],     // cursor-agent routes imply effort in the model id
       ["composer", "high"],
